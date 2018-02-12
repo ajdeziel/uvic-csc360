@@ -18,12 +18,12 @@ or higher will be required.
 
 3. Open Terminal (Linux OS/macOS) or PowerShell/Command Prompt (Windows).
 
-4. Navigate in command line window to submission folder.	
+4. Navigate in command line window to folder containing program.	
 
 5. Compile program by executing the following command:		
    ```
    make
-   ```		
+   ```		 
    If successful, a new command line will then appear.
 		
 6. To run the program, execute the following command:
