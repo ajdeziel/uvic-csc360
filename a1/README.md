@@ -5,7 +5,7 @@
 ###### Created on: 2018-01-27
 
 
-### Prequisites
+### Prerequisites
 
 To run the Simple Shell Interpreter, a compiler (e.g. g++) supporting C++11 
 or higher will be required.
