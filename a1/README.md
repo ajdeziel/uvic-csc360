@@ -5,13 +5,12 @@
 ###### Created on: 2018-01-27
 
 
-### Prerequisites
-
+## Prerequisites
 To run the Simple Shell Interpreter, a compiler (e.g. g++) supporting C++11 
 or higher will be required.
 
 
-### How to compile and run
+## How to compile and run
 1. Unzip compressed submission file. All files related to the program that are required to run it are included inside.		
 
 2. Ensure that the g++ compiler installed supports C++11 or higher. If not, please update the compiler to a compatible version.
