@@ -153,6 +153,8 @@ int main(int argc, char *argv[]) {
     // It stopped me from going crazy while figuring out more difficult code sections.
     cout << "DERP ME HAZ " << total_train_count << " TRAINZ. HJWEHGHUQWWQWQOIUOIDHADHJAJKkjas." << endl;
 
+    return EXIT_SUCCESS;
+
 
     // Print input
     // int hours = 0;
