@@ -34,7 +34,8 @@ using namespace std;
 struct Train {
     int train_id;
     int priority;
-    string direction;
+    int direction;
+    int last_train_direction;
     int load_time;
     int cross_time;
 
@@ -42,8 +43,37 @@ struct Train {
     // Still must account for direction, and probably should specify arrival using train_id.
     // Follow Assignment 2 spec, Section 2.2 to construct comparator.
     bool operator<(const Train& rhs) const {
-        return priority < rhs.priority;
+        if (priority > rhs.priority) {
+            return priority > rhs.priority;
+        } else if (priority < rhs.priority) {
+            return priority < rhs.priority;
+        } else if (priority == rhs.priority) {
+            if (direction == rhs.direction) {
+                if (load_time < rhs.load_time) {
+                    return load_time < rhs.load_time;
+                } else if (load_time == rhs.load_time) {
+                    return train_id < rhs.train_id;
+                }
+            } else if (direction != rhs.direction) {
+                /*pick train that is opposite of last train to cross track*/
+                if (direction == 0) {
+                    return direction < rhs.direction;
+                } else {
+                    return direction < rhs.direction;
+                }
+            }
+        }
     }
+};
+
+enum TrainPriority {
+    HIGH = 0,
+    LOW = 1,
+};
+
+enum TrainDirection {
+    EAST = 0,
+    WEST = 1,
 };
 
 int main(int argc, char *argv[]) {
@@ -59,6 +89,14 @@ int main(int argc, char *argv[]) {
     std::ifstream file;
     std::priority_queue<Train> train_queue;
     std::vector<Train> trains;
+
+    // Retrieve train priority states
+    TrainPriority tp_high = HIGH;
+    TrainPriority tp_low = LOW;
+    
+    // Retrieve train direction states
+    TrainDirection td_east = EAST;
+    TrainDirection td_west = WEST;
 
     // Open train schedule file
     file.open(argv[1], std::ifstream::in);
@@ -82,29 +120,29 @@ int main(int argc, char *argv[]) {
             read_lines.push_back(input);
         }
 
-        // Push new train onto trains vector with default constructor
+        // Push new train onto trains vector
         trains[total_train_count].train_id = total_train_count;
         trains[total_train_count].load_time = atoi(read_lines[1].c_str());
         trains[total_train_count].cross_time = atoi(read_lines[2].c_str());
 
         // Verify train priority & direction
-        // High priority is defined by 1, low priority by 0.
+        // High priority is defined by 0, low priority by 1.
         if (read_lines[0].compare("E") == 0) {
             // High priority Eastbound
-            trains[total_train_count].priority = 1;
-            trains[total_train_count].direction = "East";
+            trains[total_train_count].priority = tp_high;
+            trains[total_train_count].direction = td_east;
         } else if (read_lines[0].compare("e") == 0) {
             // Low priority Eastbound
-            trains[total_train_count].priority = 0;
-            trains[total_train_count].direction = "East";
+            trains[total_train_count].priority = tp_low;
+            trains[total_train_count].direction = td_east;
         } else if (read_lines[0].compare("W") == 0) {
             // High priority Westbound
-            trains[total_train_count].priority = 1;
-            trains[total_train_count].direction = "West";
+            trains[total_train_count].priority = tp_high;
+            trains[total_train_count].direction = td_west;
         } else if (read_lines[0].compare("w") == 0) {
             // Low priority Westbound
-            trains[total_train_count].priority = 0;
-            trains[total_train_count].direction = "West";
+            trains[total_train_count].priority = tp_low;
+            trains[total_train_count].direction = td_west;
         }
 
         read_lines.clear();
@@ -127,9 +165,9 @@ int main(int argc, char *argv[]) {
     for (unsigned int i = 0; i < trains.size(); i++) {
         string priority_state;
         if (trains[i].priority == 1) {
-            priority_state = "High";
-        } else if (trains[i].priority == 0) {
             priority_state = "Low";
+        } else if (trains[i].priority == 0) {
+            priority_state = "High";
         }
         cout << trains[i].train_id << ", " << priority_state << ", " << trains[i].direction << ", " << trains[i].load_time << ", " << trains[i].cross_time << endl;
 
@@ -154,7 +192,6 @@ int main(int argc, char *argv[]) {
     // It stopped me from going crazy while figuring out more difficult code sections.
     cout << "DERP ME HAZ " << total_train_count << " TRAINZ. HJWEHGHUQWWQWQOIUOIDHADHJAJKkjas." << endl;
 
-    return EXIT_SUCCESS;
 
 
     // Print input
@@ -174,5 +211,6 @@ int main(int argc, char *argv[]) {
 //    // OFF Track status messages
 //    cout << "Train " << train_id << " is " << train_status << " the main track after going East";
 //    cout << "Train " << train_id << " is " << train_status << " the main track after going West";
-
+    
+    return EXIT_SUCCESS;
 }
