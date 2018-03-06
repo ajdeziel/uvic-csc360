@@ -47,7 +47,7 @@ This program is an exercise in multi-threading.
    > W 7 10
 
    Train direction is indicated by either **e**ast or **w**est, and priority
-   by either a capital letter (**high priority**) or a lowercase letter (**low priority**)*.
+   by either a capital letter (**high priority**) or a lowercase letter (**low priority**).
 
    ##### Low priority direction symbols
    > e/w
