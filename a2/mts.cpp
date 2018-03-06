@@ -40,6 +40,7 @@ struct Train {
 
     // Only doing based on priority and arrival in file by logic.
     // Still must account for direction, and probably should specify arrival using train_id.
+    // Follow Assignment 2 spec, Section 2.2 to construct comparator.
     bool operator<(const Train& rhs) const {
         return priority < rhs.priority;
     }
