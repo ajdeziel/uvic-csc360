@@ -2,7 +2,7 @@ OUT_EXE=mts
 all: mts
 
 mts: mts.cpp
-	g++ -g mts.cpp -lpthread -o mts
+	g++ -g -Wall mts.cpp -o mts -lpthread
 
 clean:
 	rm -f ${OUT_EXE} *.o

@@ -18,10 +18,11 @@
 #include <unistd.h>
 
 #include <exception>
-#include <ifstream>
+#include <fstream>
 #include <queue>
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -35,24 +36,27 @@ struct Train{
     int cross_time;
 };
 
-int main(int argc, char **argv[]) {
+int main(int argc, char *argv[]) {
 
     if (argc <= 1) {
-        throw "No train schedule file has been provided. Please provide a train schedule file before continuing.";
+        throw std::invalid_argument("No train schedule file has been provided. Please provide a train schedule file before continuing.");
     } else if (argc > 2) {
-        throw "Too many train schedule files have been provided. Please only provide a single train schedule file before continuing.";
+        throw std::invalid_argument("Too many train schedule files have been provided. Please only provide a single train schedule file before continuing.");
     }
 
     std::ifstream file;
-    std::priority_queue<Train> train_queue;
+    //std::priority_queue<Train> train_queue;
     std::vector<Train> trains;
+
     file.open(argv[1], std::ifstream::in);
+    cout << "Opening " << argv[1] << " ..." << endl;
 
     int count = 0;
+    //pthread_t train_pro[];
 
     for (string line; getline(file, line); ) {
         std::vector<string> read_lines;
-        pthread train_pro;
+        trains.push_back(Train());
 
         // Tokenize input into vector of strings.
         // Originally designed for Assignment 1
@@ -65,34 +69,63 @@ int main(int argc, char **argv[]) {
         }
 
         // Refer to www.cplusplus.com/forum/general/37962
-        // Create train in priority queue
-        Train *train_line = new Train;
-        train_line->train_thread = pthread_create(&train_pro, NULL, );
-        train_line->load_time = stoi(read_lines[1]);
-        train_line->cross_time = stoi(read_lines[2]);
+        // Create train
+        // string::size_type sz;
+
+        // Train *train_line = new Train;
+        // train_line->train_thread = train_pro;
+        // train_line->load_time = atoi(read_lines[1].c_str());
+        // train_line->cross_time = atoi(read_lines[2].c_str());
+
+        // // Verify train priority & direction
+        // if (read_lines[0].compare("E") == 0) {
+        //     // High priority Eastbound
+        //     train_line->priority = "High";
+        //     train_line->direction = "East";
+        // } else if (read_lines[0].compare("e") == 0) {
+        //     // Low priority Eastbound
+        //     train_line->priority = "Low";
+        //     train_line->direction = "East";
+        // } else if (read_lines[0].compare("W") == 0) {
+        //     // High priority Westbound
+        //     train_line->priority = "High";
+        //     train_line->direction = "West";
+        // } else if (read_lines[0].compare("w") == 0) {
+        //     // Low priority Westbound
+        //     train_line->priority = "Low";
+        //     train_line->direction = "West";
+        // }
+
+        // Push new train onto trains vector with default constructor
+        //trains[count].train_thread = train_pro;
+        trains[count].load_time = atoi(read_lines[1].c_str());
+        trains[count].cross_time = atoi(read_lines[2].c_str());
 
         // Verify train priority & direction
         if (read_lines[0].compare("E") == 0) {
             // High priority Eastbound
-            train_line->priority = "High";
-            train_line->direction = "East";
+            trains[count].priority = "High";
+            trains[count].direction = "East";
         } else if (read_lines[0].compare("e") == 0) {
             // Low priority Eastbound
-            train_line->priority = "Low";
-            train_line->direction = "East";
+            trains[count].priority = "Low";
+            trains[count].direction = "East";
         } else if (read_lines[0].compare("W") == 0) {
             // High priority Westbound
-            train_line->priority = "High";
-            train_line->direction = "West";
+            trains[count].priority = "High";
+            trains[count].direction = "West";
         } else if (read_lines[0].compare("w") == 0) {
             // Low priority Westbound
-            train_line->priority = "Low";
-            train_line->direction = "West";
+            trains[count].priority = "Low";
+            trains[count].direction = "West";
         }
 
-        // Push onto trains vector
-        trains.push_back(train_line);
         read_lines.clear();
+
+        // If end of file is reached, break.
+        if(file.eof()) {
+            break;
+        }
 
         // Increment train counter
         count++;
@@ -101,13 +134,20 @@ int main(int argc, char **argv[]) {
     // Exiting for loop means all lines from input file have been read.
     // Close input file
     file.close();
+    cout << "All trains read from " << argv[1] << "." << endl;
 
-    //TODO: Write custom comparator for priority queue
+
+    // TODO: Write custom comparator for priority queue
+
+    //Create threads for all train threads
+    for (unsigned int i = 0; i < trains.size(); i++) {
+        cout << trains[i].train_thread << ", " << trains[i].priority << ", " << trains[i].direction << ", " << trains[i].load_time << ", " << trains[i].cross_time << endl;
+    }
 
     // Print input
-    int hours = 0;
-    int minutes = 0;
-    float seconds = 0.0;
+    // int hours = 0;
+    // int minutes = 0;
+    // float seconds = 0.0;
 
     // TODO: Train Schedule Output
 //    printf("%02d:%02d:%04.1f ", hours, minutes, seconds);
