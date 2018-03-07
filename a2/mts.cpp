@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <exception>
@@ -26,6 +27,8 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+
+#define BILLION 1000000000L;
 
 using namespace std;
 
@@ -121,7 +124,7 @@ int main(int argc, char *argv[]) {
         trains.push_back(Train());
 
         // Tokenize input into vector of strings.
-        // Originally designed for Assignment 1
+        // Originally designed for CSC 360, Assignment 1 (Simple Shell Interpreter)
         // Inspired from https://www.geeksforgeeks.org/tokenizing-a-string-cpp
         stringstream inputstream(line);
         string input;
@@ -177,6 +180,20 @@ int main(int argc, char *argv[]) {
     pthread_mutex_init(&eastbound_mutex, NULL);
     pthread_mutex_init(&westbound_mutex, NULL);
 
+    //Set up timer
+    struct timespec start, stop;
+    double accum;
+
+    if (clock_gettime(CLOCK_MONOTONIC, &start) == -1) {
+        perror("clock gettime");
+        exit(EXIT_FAILURE);
+    }
+
+    if (clock_gettime(CLOCK_REALTIME, &stop) == -1) {
+        perror("clock gettime");
+        exit(EXIT_FAILURE);
+    }
+
     //Create threads for all train threads
     for (unsigned int i = 0; i < trains.size(); i++) {      
         // Create pthread instance
@@ -191,30 +208,44 @@ int main(int argc, char *argv[]) {
                 train_east_queue.push(trains[i]);
             } else {
                 pthread_mutex_lock(&eastbound_mutex);
+                train_east_queue.push(trains[i]);
+                pthread_mutex_unlock(&eastbound_mutex);
             }
+
+            accum = (stop.tv_sec - start.tv_sec) + ((stop.tv_nsec - start.tv_nsec) / BILLION);
+            printf("%02d:%02d:%04.1f ", (accum/60)/60, accum/60, accum);
+            cout << "Train " << trains[i].train_id << " is ready to go East";
         } else {
-            train_west_queue.push(trains[i]);
-        }           
+            if (train_west_queue.empty()) {
+                train_west_queue.push(trains[i]);
+            } else {
+                pthread_mutex_lock(&westbound_mutex);
+                train_west_queue.push(trains[i]);
+                pthread_mutex_unlock(&westbound_mutex);
+            }
+            
+            accum = (stop.tv_sec - start.tv_sec) + ((stop.tv_nsec - start.tv_nsec) / BILLION);
+            printf("%02d:%02d:%04.1f ", (accum/60)/60, accum/60, accum);
+            cout << "Train " << trains[i].train_id << " is ready to go West";
+        } 
     }
 
-    // THIS WORKS!! No need to test anymore.
-    // Sample test of train's queue
-    // Train sample1 = train_queue.top();
-    // cout << sample1.train_id << "," << sample1.priority << "," << sample1.direction << "," << sample1.load_time << "," << sample1.cross_time << endl;
-    // train_queue.pop();
+    //Destroy station queue mutexes
+    pthread_mutex_destroy(&eastbound_mutex);
+    pthread_mutex_destroy(&westbound_mutex);
 
-    // Train sample2 = train_queue.top();
-    // cout << sample2.train_id << "," << sample2.priority << "," << sample2.direction << "," << sample2.load_time << "," << sample2.cross_time << endl;
-    // train_queue.pop();
+    // Create mutex to control access to track
+    pthread_cond_t track_busy;
+    pthread_mutex_t track_control;
+    pthread_mutex_init(&track_control, NULL);
 
-    // Train sample3 = train_queue.top();
-    // cout << sample3.train_id << "," << sample3.priority << "," << sample3.direction << "," << sample3.load_time << "," << sample3.cross_time << endl;
-    // train_queue.pop();
+    int num_crossed = 0;
 
+    while (num_crossed < total_train_count) {
+        
 
-    // A joke line for me to keep track of total train count during debugging.
-    // It stopped me from going crazy while figuring out more difficult code sections.
-    cout << "DERP ME HAZ " << total_train_count << " TRAINZ. HJWEHGHUQWWQWQOIUOIDHADHJAJKkjas." << endl;
+        num_crossed++;
+    }
 
 
 
@@ -224,9 +255,6 @@ int main(int argc, char *argv[]) {
     // float seconds = 0.0;
 
     // TODO: Train Schedule Output
-//    printf("%02d:%02d:%04.1f ", hours, minutes, seconds);
-//    cout << "Train " << train_id << " is ready to go East";
-//    cout << "Train " << train_id << " is ready to go West";
 //
 //    // ON Track status messages
 //    cout << "Train " << train_id << " is " << train_status << " the main track going East";
