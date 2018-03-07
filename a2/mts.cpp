@@ -47,17 +47,20 @@ struct Train {
             return priority > rhs.priority;
         } else if (priority < rhs.priority) {
             return priority < rhs.priority;
-        } else if (priority == rhs.priority) {
+        } else {
+            // If trains have same priority
             if (direction == rhs.direction) {
                 if (load_time < rhs.load_time) {
                     return load_time < rhs.load_time;
                 } else if (load_time == rhs.load_time) {
                     return train_id < rhs.train_id;
+                } else {
+                    return load_time > rhs.load_time;
                 }
-            } else if (direction != rhs.direction) {
-                /*pick train that is opposite of last train to cross track*/
-                if (direction == 0) {
-                    return direction < rhs.direction;
+            } else {
+                // Pick train that is opposite of last train to cross track
+                if (direction == last_train_direction) {
+                    return direction > rhs.direction;
                 } else {
                     return direction < rhs.direction;
                 }
@@ -76,6 +79,14 @@ enum TrainDirection {
     WEST = 1,
 };
 
+
+void* start_routine(void* args) {
+    Train *train_line = (Train*) args;
+    usleep((train_line->load_time) * 100000);
+    pthread_exit(NULL);
+}
+
+
 int main(int argc, char *argv[]) {
 
     // Verify arguments passed
@@ -87,7 +98,8 @@ int main(int argc, char *argv[]) {
 
     // Initialization of necessary structures
     std::ifstream file;
-    std::priority_queue<Train> train_queue;
+    std::priority_queue<Train> train_east_queue;
+    std::priority_queue<Train> train_west_queue;
     std::vector<Train> trains;
 
     // Retrieve train priority states
@@ -107,8 +119,6 @@ int main(int argc, char *argv[]) {
     for (string line; getline(file, line); ) {
         std::vector<string> read_lines;
         trains.push_back(Train());
-        // DON'T UNCOMMENT YET, DANGEROUS
-        // pthread_t train_pro;
 
         // Tokenize input into vector of strings.
         // Originally designed for Assignment 1
@@ -157,35 +167,49 @@ int main(int argc, char *argv[]) {
     }
 
     // Exiting for loop means all lines from input file have been read.
-    // Close input file
+    // Close input file.
     file.close();
     cout << "All trains read from " << argv[1] << "." << endl;
 
-    //Create threads for all train threads
-    for (unsigned int i = 0; i < trains.size(); i++) {
-        string priority_state;
-        if (trains[i].priority == 1) {
-            priority_state = "Low";
-        } else if (trains[i].priority == 0) {
-            priority_state = "High";
-        }
-        cout << trains[i].train_id << ", " << priority_state << ", " << trains[i].direction << ", " << trains[i].load_time << ", " << trains[i].cross_time << endl;
+    // Create mutexes to control access to priority queues
+    pthread_mutex_t eastbound_mutex;
+    pthread_mutex_t westbound_mutex;
+    pthread_mutex_init(&eastbound_mutex, NULL);
+    pthread_mutex_init(&westbound_mutex, NULL);
 
-        train_queue.push(trains[i]);
+    //Create threads for all train threads
+    for (unsigned int i = 0; i < trains.size(); i++) {      
+        // Create pthread instance
+        pthread_t train_pro;
+
+        // Create and join pthreads for each train
+        pthread_create(&train_pro, NULL, &start_routine, (void*)&trains.at(i));
+
+        // When done loading, push to respective priority queue
+        if (trains[i].direction == td_east) {
+            if (train_east_queue.empty()) {
+                train_east_queue.push(trains[i]);
+            } else {
+                pthread_mutex_lock(&eastbound_mutex);
+            }
+        } else {
+            train_west_queue.push(trains[i]);
+        }           
     }
 
+    // THIS WORKS!! No need to test anymore.
     // Sample test of train's queue
-    Train sample1 = train_queue.top();
-    cout << sample1.train_id << "," << sample1.priority << "," << sample1.direction << "," << sample1.load_time << "," << sample1.cross_time << endl;
-    train_queue.pop();
+    // Train sample1 = train_queue.top();
+    // cout << sample1.train_id << "," << sample1.priority << "," << sample1.direction << "," << sample1.load_time << "," << sample1.cross_time << endl;
+    // train_queue.pop();
 
-    Train sample2 = train_queue.top();
-    cout << sample2.train_id << "," << sample2.priority << "," << sample2.direction << "," << sample2.load_time << "," << sample2.cross_time << endl;
-    train_queue.pop();
+    // Train sample2 = train_queue.top();
+    // cout << sample2.train_id << "," << sample2.priority << "," << sample2.direction << "," << sample2.load_time << "," << sample2.cross_time << endl;
+    // train_queue.pop();
 
-    Train sample3 = train_queue.top();
-    cout << sample3.train_id << "," << sample3.priority << "," << sample3.direction << "," << sample3.load_time << "," << sample3.cross_time << endl;
-    train_queue.pop();
+    // Train sample3 = train_queue.top();
+    // cout << sample3.train_id << "," << sample3.priority << "," << sample3.direction << "," << sample3.load_time << "," << sample3.cross_time << endl;
+    // train_queue.pop();
 
 
     // A joke line for me to keep track of total train count during debugging.

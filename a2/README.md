@@ -16,7 +16,7 @@ This program is an exercise in multi-threading.
 * C++11 or higher
 
 ## Deployment Instructions
-1. Ensure all dependencies are prior to starting.
+1. Ensure all dependencies are installed/updated prior to starting.
 
 2. Open Terminal (macOS/Linux/*nix systems) or PowerShell/Command Prompt (Windows).
 
@@ -60,3 +60,5 @@ This program is an exercise in multi-threading.
 
 7. The program will automatically terminate and exit successfully upon completion.
 
+## Changes from Design Document
+* Trains now load simultaneously. They do not wait for another train to finish loading before they begin.
