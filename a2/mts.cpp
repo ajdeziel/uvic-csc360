@@ -28,7 +28,7 @@
 #include <string>
 #include <vector>
 
-#define BILLION 1000000000L;
+#define BILLION 1000000000L
 
 using namespace std;
 
@@ -72,6 +72,14 @@ struct Train {
     }
 };
 
+struct TrainArgs {
+    Train train;
+    timespec start;
+    timespec stop;
+    double accum;
+    int total_train_count;
+};
+
 enum TrainPriority {
     HIGH = 0,
     LOW = 1,
@@ -82,10 +90,162 @@ enum TrainDirection {
     WEST = 1,
 };
 
+// Retrieve train priority states
+TrainPriority tp_high = HIGH;
+TrainPriority tp_low = LOW;
 
-void* start_routine(void* args) {
-    Train *train_line = (Train*) args;
-    usleep((train_line->load_time) * 100000);
+// Retrieve train direction states
+TrainDirection td_east = EAST;
+TrainDirection td_west = WEST;
+
+// Create mutexes to control access to priority queues
+pthread_mutex_t eastbound_mutex;
+pthread_mutex_t westbound_mutex;
+
+// Create mutex to control access to track
+pthread_cond_t track_busy;
+pthread_mutex_t track_control;
+
+// Train Station Queues
+std::priority_queue<Train> train_east_queue;
+std::priority_queue<Train> train_west_queue;
+
+void* train_routine(void* args) {
+
+    TrainArgs *train = (TrainArgs*) args;
+    Train train_line = train->train;
+    timespec start = train->start;
+    timespec stop = train->stop;
+    double accum = train->accum;
+    int total_train_count = train->total_train_count;
+
+    usleep((train_line.load_time) * 100000);    
+
+    // When done loading, push to respective priority queue
+    if (train_line.direction == td_east) {
+        pthread_mutex_lock(&eastbound_mutex);
+        train_east_queue.push(train_line);
+        pthread_mutex_unlock(&eastbound_mutex);
+        
+        // Train is loaded on East and ready to go
+        accum = (stop.tv_sec - start.tv_sec) + ((stop.tv_nsec - start.tv_nsec) / BILLION);
+        printf("%02d:%02d:%04.1f ", int((accum/60)/60), int(accum/60), accum);
+        cout << "Train " << train_line.train_id << " is ready to go East";        
+    } else {
+        pthread_mutex_lock(&westbound_mutex);
+        train_west_queue.push(train_line);
+        pthread_mutex_unlock(&westbound_mutex);
+
+        // Train is loaded on West and ready to go
+        accum = (stop.tv_sec - start.tv_sec) + ((stop.tv_nsec - start.tv_nsec) / BILLION);
+        printf("%02d:%02d:%04.1f ", int((accum/60)/60), int(accum/60), accum);
+        cout << "Train " << train_line.train_id << " is ready to go West";
+    }
+
+    int num_crossed = 0;
+
+    while (num_crossed < total_train_count) {
+        string last_direction_allowed;
+
+        if (pthread_mutex_trylock(&track_control) == 0) {
+            pthread_mutex_lock(&track_control);
+            Train train_top_west = train_west_queue.top();
+            Train train_top_east = train_east_queue.top();
+            
+            if (train_top_east.priority > train_top_west.priority) {
+                pthread_cond_signal(&track_busy);
+                
+                // Train ON track status
+                accum = (stop.tv_sec - start.tv_sec) + ((stop.tv_nsec - start.tv_nsec) / BILLION);
+                printf("%02d:%02d:%04.1f ", int((accum/60)/60), int(accum/60), accum);
+                cout << "Train " << train_top_east.train_id << " is ON the main track going East";
+                
+                usleep(train_top_east.cross_time * 100000);
+                
+                // Train OFF track status
+                accum = (stop.tv_sec - start.tv_sec) + ((stop.tv_nsec - start.tv_nsec) / BILLION);
+                printf("%02d:%02d:%04.1f ", int((accum/60)/60), int(accum/60), accum);
+                cout << "Train " << train_top_east.train_id << " is OFF the main track going East";
+
+                train_east_queue.pop();
+                last_direction_allowed = "East";
+            } else if (train_top_east.priority < train_top_west.priority) {
+                pthread_cond_signal(&track_busy);
+                
+                // Train ON track status
+                accum = (stop.tv_sec - start.tv_sec) + ((stop.tv_nsec - start.tv_nsec) / BILLION);
+                printf("%02d:%02d:%04.1f ", int((accum/60)/60), int(accum/60), accum);
+                cout << "Train " << train_top_west.train_id << " is ON the main track going West";
+
+                usleep(train_top_west.cross_time * 100000);
+                
+                // Train OFF track status
+                accum = (stop.tv_sec - start.tv_sec) + ((stop.tv_nsec - start.tv_nsec) / BILLION);
+                printf("%02d:%02d:%04.1f ", int((accum/60)/60), int(accum/60), accum);
+                cout << "Train " << train_top_west.train_id << " is OFF the main track going West";
+
+                train_west_queue.pop();
+                last_direction_allowed = "West";
+            } else {
+                if (last_direction_allowed.compare("East")) {
+                    pthread_cond_signal(&track_busy);
+                    
+                    // Train ON track status
+                    accum = (stop.tv_sec - start.tv_sec) + ((stop.tv_nsec - start.tv_nsec) / BILLION);
+                    printf("%02d:%02d:%04.1f ", int((accum/60)/60), int(accum/60), accum);
+                    cout << "Train " << train_top_west.train_id << " is ON the main track going West";
+
+                    usleep(train_top_west.cross_time * 100000);
+                    
+                    // Train OFF track status
+                    accum = (stop.tv_sec - start.tv_sec) + ((stop.tv_nsec - start.tv_nsec) / BILLION);
+                    printf("%02d:%02d:%04.1f ", int((accum/60)/60), int(accum/60), accum);
+                    cout << "Train " << train_top_west.train_id << " is OFF the main track going West";
+
+                    train_west_queue.pop();
+                    last_direction_allowed = "West";
+                } else if (last_direction_allowed.compare("West")) {
+                    pthread_cond_signal(&track_busy);
+                
+                    // Train ON track status
+                    accum = (stop.tv_sec - start.tv_sec) + ((stop.tv_nsec - start.tv_nsec) / BILLION);
+                    printf("%02d:%02d:%04.1f ", int((accum/60)/60), int(accum/60), accum);
+                    cout << "Train " << train_top_east.train_id << " is ON the main track going East";
+                    
+                    usleep(train_top_east.cross_time * 100000);
+                    
+                    // Train OFF track status
+                    accum = (stop.tv_sec - start.tv_sec) + ((stop.tv_nsec - start.tv_nsec) / BILLION);
+                    printf("%02d:%02d:%04.1f ", int((accum/60)/60), int(accum/60), accum);
+                    cout << "Train " << train_top_east.train_id << " is OFF the main track going East";
+
+                    train_east_queue.pop();
+                    last_direction_allowed = "East";
+                } else {
+                    pthread_cond_signal(&track_busy);
+                
+                    // Train ON track status
+                    accum = (stop.tv_sec - start.tv_sec) + ((stop.tv_nsec - start.tv_nsec) / BILLION);
+                    printf("%02d:%02d:%04.1f ", int((accum/60)/60), int(accum/60), accum);
+                    cout << "Train " << train_top_east.train_id << " is ON the main track going East";
+                    
+                    usleep(train_top_east.cross_time * 100000);
+                    
+                    // Train OFF track status
+                    accum = (stop.tv_sec - start.tv_sec) + ((stop.tv_nsec - start.tv_nsec) / BILLION);
+                    printf("%02d:%02d:%04.1f ", int((accum/60)/60), int(accum/60), accum);
+                    cout << "Train " << train_top_east.train_id << " is OFF the main track going East";
+
+                    train_east_queue.pop();
+                    last_direction_allowed = "East";
+                }
+            }
+            pthread_mutex_unlock(&track_control);
+        }        
+
+        num_crossed++;
+    }
+
     pthread_exit(NULL);
 }
 
@@ -101,17 +261,7 @@ int main(int argc, char *argv[]) {
 
     // Initialization of necessary structures
     std::ifstream file;
-    std::priority_queue<Train> train_east_queue;
-    std::priority_queue<Train> train_west_queue;
     std::vector<Train> trains;
-
-    // Retrieve train priority states
-    TrainPriority tp_high = HIGH;
-    TrainPriority tp_low = LOW;
-    
-    // Retrieve train direction states
-    TrainDirection td_east = EAST;
-    TrainDirection td_west = WEST;
 
     // Open train schedule file
     file.open(argv[1], std::ifstream::in);
@@ -174,15 +324,16 @@ int main(int argc, char *argv[]) {
     file.close();
     cout << "All trains read from " << argv[1] << "." << endl;
 
-    // Create mutexes to control access to priority queues
-    pthread_mutex_t eastbound_mutex;
-    pthread_mutex_t westbound_mutex;
+    // Create train station mutexes
     pthread_mutex_init(&eastbound_mutex, NULL);
     pthread_mutex_init(&westbound_mutex, NULL);
 
+    // Create track control mutex
+    pthread_mutex_init(&track_control, NULL);
+
     //Set up timer
     struct timespec start, stop;
-    double accum;
+    double accum = 0.0;
 
     if (clock_gettime(CLOCK_MONOTONIC, &start) == -1) {
         perror("clock gettime");
@@ -199,70 +350,24 @@ int main(int argc, char *argv[]) {
         // Create pthread instance
         pthread_t train_pro;
 
+        TrainArgs args;
+        args.train = trains.at(i);
+        args.start = start;
+        args.stop = stop;
+        args.accum = accum;
+        args.total_train_count = total_train_count;
+
         // Create and join pthreads for each train
-        pthread_create(&train_pro, NULL, &start_routine, (void*)&trains.at(i));
-
-        // When done loading, push to respective priority queue
-        if (trains[i].direction == td_east) {
-            if (train_east_queue.empty()) {
-                train_east_queue.push(trains[i]);
-            } else {
-                pthread_mutex_lock(&eastbound_mutex);
-                train_east_queue.push(trains[i]);
-                pthread_mutex_unlock(&eastbound_mutex);
-            }
-
-            accum = (stop.tv_sec - start.tv_sec) + ((stop.tv_nsec - start.tv_nsec) / BILLION);
-            printf("%02d:%02d:%04.1f ", (accum/60)/60, accum/60, accum);
-            cout << "Train " << trains[i].train_id << " is ready to go East";
-        } else {
-            if (train_west_queue.empty()) {
-                train_west_queue.push(trains[i]);
-            } else {
-                pthread_mutex_lock(&westbound_mutex);
-                train_west_queue.push(trains[i]);
-                pthread_mutex_unlock(&westbound_mutex);
-            }
-            
-            accum = (stop.tv_sec - start.tv_sec) + ((stop.tv_nsec - start.tv_nsec) / BILLION);
-            printf("%02d:%02d:%04.1f ", (accum/60)/60, accum/60, accum);
-            cout << "Train " << trains[i].train_id << " is ready to go West";
-        } 
+        pthread_create(&train_pro, NULL, &train_routine, (void*)&args);
     }
 
     //Destroy station queue mutexes
     pthread_mutex_destroy(&eastbound_mutex);
     pthread_mutex_destroy(&westbound_mutex);
 
-    // Create mutex to control access to track
-    pthread_cond_t track_busy;
-    pthread_mutex_t track_control;
-    pthread_mutex_init(&track_control, NULL);
-
-    int num_crossed = 0;
-
-    while (num_crossed < total_train_count) {
-        
-
-        num_crossed++;
-    }
-
-
-
-    // Print input
-    // int hours = 0;
-    // int minutes = 0;
-    // float seconds = 0.0;
-
-    // TODO: Train Schedule Output
-//
-//    // ON Track status messages
-//    cout << "Train " << train_id << " is " << train_status << " the main track going East";
-//    cout << "Train " << train_id << " is " << train_status << " the main track going West";
-//
-//    // OFF Track status messages
-//    cout << "Train " << train_id << " is " << train_status << " the main track after going East";
-//    cout << "Train " << train_id << " is " << train_status << " the main track after going West";
+    // Destroy track control mutex
+    pthread_cond_destroy(&track_busy);
+    pthread_mutex_destroy(&track_control);
     
     return EXIT_SUCCESS;
 }
