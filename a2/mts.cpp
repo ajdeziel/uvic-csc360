@@ -32,9 +32,8 @@
 
 using namespace std;
 
-// Build comparator according to:
-// https://stackoverflow.com/questions/15601973/stl-priority-queue-of-c-with-struct
 struct Train {
+    // Struct representing each train in input file
     int train_id;
     int priority;
     int direction;
@@ -42,9 +41,7 @@ struct Train {
     int load_time;
     int cross_time;
 
-    // Only doing based on priority and arrival in file by logic.
-    // Still must account for direction, and probably should specify arrival using train_id.
-    // Follow Assignment 2 spec, Section 2.2 to construct comparator.
+    // Comparator to order trains in station priority queue
     bool operator<(const Train& rhs) const {
         if (priority > rhs.priority) {
             return priority > rhs.priority;
@@ -61,12 +58,6 @@ struct Train {
                     return load_time > rhs.load_time;
                 }
             } else {
-                // Pick train that is opposite of last train to cross track
-                if (direction == last_train_direction) {
-                    return direction > rhs.direction;
-                } else {
-                    return direction < rhs.direction;
-                }
             }
         }
     }
@@ -152,7 +143,10 @@ void* train_routine(void* args) {
             Train train_top_west = train_west_queue.top();
             Train train_top_east = train_east_queue.top();
             
+            // Verify which train gets to cross track
             if (train_top_east.priority > train_top_west.priority) {
+                // Eastbound train has higher priority than Westbound train
+
                 pthread_cond_signal(&track_busy);
                 
                 // Train ON track status
@@ -170,6 +164,8 @@ void* train_routine(void* args) {
                 train_east_queue.pop();
                 last_direction_allowed = "East";
             } else if (train_top_east.priority < train_top_west.priority) {
+                // Eastbound train has less priority than Westbound train
+
                 pthread_cond_signal(&track_busy);
                 
                 // Train ON track status
@@ -187,7 +183,12 @@ void* train_routine(void* args) {
                 train_west_queue.pop();
                 last_direction_allowed = "West";
             } else {
+                // Eastbound train and Westbound train have same priority
+
+                // Which direction did the last train cross in?
                 if (last_direction_allowed.compare("East")) {
+                    // If East, let Westbound train go.
+                    
                     pthread_cond_signal(&track_busy);
                     
                     // Train ON track status
@@ -205,6 +206,8 @@ void* train_routine(void* args) {
                     train_west_queue.pop();
                     last_direction_allowed = "West";
                 } else if (last_direction_allowed.compare("West")) {
+                    // If West, let Eastbound train go.
+                    
                     pthread_cond_signal(&track_busy);
                 
                     // Train ON track status
@@ -222,6 +225,8 @@ void* train_routine(void* args) {
                     train_east_queue.pop();
                     last_direction_allowed = "East";
                 } else {
+                    // If no train has gone, let Eastbound go.
+                    
                     pthread_cond_signal(&track_busy);
                 
                     // Train ON track status
@@ -240,6 +245,7 @@ void* train_routine(void* args) {
                     last_direction_allowed = "East";
                 }
             }
+            
             pthread_mutex_unlock(&track_control);
         }        
 
