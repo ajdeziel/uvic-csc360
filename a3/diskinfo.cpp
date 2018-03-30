@@ -5,12 +5,7 @@
  * Author: AJ Po-Deziel
  * Created on: 2018-03-16
  * 
- * Something goes here
- * 
- * 
- * Byte error (got Endianness wrong): 1900 000
- * Padding error (didn't handle padding well): 0019 0000
- * Both wrong: 19
+ * Retrieve file system information from a disk image file.
  */
 
 #include <stdio.h>
@@ -63,27 +58,22 @@ int main(int argc, char* argv[]) {
     sb->reserved_blocks = 0;
     sb->allocated_blocks = 0;
 
-    // Ensure for loop iterates for correct amount of FAT blocks
-    unsigned int FAT_blocks = (sb->FAT_start_block + sb->FAT_block_count);
+    // Ensure for loop iterates for correct amount of FAT entries
+    uint32_t FAT_start_byte = 512; // + (sb->block_size * (sb->FAT_start_block - 1));
+    uint32_t FAT_end_byte = (sb->block_size * sb->FAT_block_count) + FAT_start_byte;
 
-    // Determine amount of free and reserved blocks in FAT table
-    for (unsigned int block = sb->FAT_start_block; block < FAT_blocks; block++) {
-        // unsigned int offset = 0;
-        for (unsigned int FAT_entry = 0; FAT_entry < 128; FAT_entry++) {
-            unsigned int current_entry = ntohl(*(uint32_t*) &address[FAT_entry]);
+    // Determine amount of free/reserved/allocated blocks in FAT table
+    for (uint32_t entry = FAT_start_byte; entry < FAT_end_byte; entry += 4) {
+        uint32_t current_entry = ntohl(*(uint32_t*) &address[entry]);
 
-            if (current_entry == 0x00000000) {
-                sb->free_blocks++;
-            } else if (current_entry == 0x00000001) {
-                sb->reserved_blocks++;
-            } else {
-                continue;
-            }
+        if (current_entry == 0x00000000) {
+            sb->free_blocks++;
+        } else if (current_entry == 0x00000001) {
+            sb->reserved_blocks++;
+        } else {
+            sb->allocated_blocks++;
         }
     }
-
-    // Determine amount of allocated blocks in FAT table
-    sb->allocated_blocks = sb->block_count - (sb->free_blocks - sb->reserved_blocks);
 
     // Output - File System Info
     cout << "Superblock information:" << endl;
@@ -100,4 +90,7 @@ int main(int argc, char* argv[]) {
     cout << "Free Blocks: " << sb->free_blocks << endl;
     cout << "Reserved Blocks: " << sb->reserved_blocks << endl;
     cout << "Allocated Blocks: " << sb->allocated_blocks << endl;
+
+
+    return EXIT_SUCCESS;
 }
