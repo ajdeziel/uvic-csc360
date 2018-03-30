@@ -9,3 +9,14 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
+
+#include <string>
+#include <vector>
+
+struct file_item {
+    int file_type;
+    char file_size[10];
+    char file_name[30];
+    string date_modified;
+};
