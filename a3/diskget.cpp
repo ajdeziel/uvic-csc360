@@ -5,7 +5,11 @@
  * Author: AJ Po-Deziel
  * Created on: 2018-03-16
  * 
- * Something goes here
+ * Copy a file from a disk image's file system, 
+ * and then write it to your local machine.
+ * 
+ * Code stylized using Google's C++ Style Guide.
+ * Available @ https://google.github.io/styleguide/cppguide.html
  */
 
 #include <stdio.h>
@@ -57,19 +61,14 @@ struct __attribute__((__packed__)) dir_entry_t {
     uint8_t                       unused[6];
 };
 
-struct FAT_entry {
-    uint32_t current_block;
-    struct FAT_entry* next_block;
-};
-
 
 int main(int argc, char* argv[]) {
     int fs = open(argv[1], O_RDWR);
     struct stat buffer;
     fstat(fs, &buffer);
 
-    char *file_fs = argv[2];
-    char *file_linux = argv[3];
+    char *file_fs = argv[2];        // File copying from file system
+    char *file_linux = argv[3];     // File writing on local machine
     
     // Get address in disk image file via memory map
     char* address = (char*)mmap(NULL, buffer.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, fs, 0);
@@ -97,6 +96,8 @@ int main(int argc, char* argv[]) {
         char file_disk[31];
         strncpy(file_disk, (char*)(uint8_t*) &address[entry + 27], 31);
         
+        // If file match is encountered, retrieve info.
+        // Otherwise, continue.
         if (strcmp(file_disk, file_fs) == 0) {
             file_found = true;
             uint8_t file_status = *(uint8_t*) &address[entry];
@@ -104,6 +105,7 @@ int main(int argc, char* argv[]) {
             dir_entry_t *fi = new dir_entry_t;
             dir_entry_timedate_t *dt = new dir_entry_timedate_t;
 
+            // Determine if file or directory
             if (file_status == 0b00000011) {
                 fi->status = 'F';
             } else if (file_status == 0b00000111) {
@@ -118,6 +120,7 @@ int main(int argc, char* argv[]) {
             
             fi->size = ntohl(*(uint32_t*) &address[entry + 9]);
             
+            // Get last date modified
             dt->year = ntohs(*(uint16_t*) &address[entry + 20]);
             dt->month = *(uint8_t*) &address[entry + 22];
             dt->day = *(uint8_t*) &address[entry + 23];
@@ -135,35 +138,21 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    // If file is not found, exit program.
     if (file_found == false) {
         cout << "File not found." << endl;
         return EXIT_FAILURE;
     }
 
-    //uint32_t FAT_start_byte = 512; // + (sb->block_size * (sb->FAT_start_block - 1));
-    //uint32_t FAT_end_byte = (sb->block_size * sb->FAT_blocks) + FAT_start_byte;
-
-    int file_blocks[(sb->block_count)];
-
+    // Iterate through files vector to access file found
     for (auto &item : files) {
         FILE* file_linux_open;
         file_linux_open = fopen(file_linux, "w");
 
-        uint32_t file_start = (item.starting_block);
-        uint32_t file_end = (item.block_count) + file_start;
+        // Copy file data from file system over to file on local machine
+        char *file_data = (char*)(uint8_t*) &address[item.starting_block * (sb->block_size)];
+        fwrite(file_data, sb->block_size, sizeof(file_data), file_linux_open);
 
-        for (uint32_t current_block = file_start; current_block < file_end; current_block++) {
-            // Seg fault happens here, why?
-            memcpy(file_blocks, &current_block, sb->block_size);
-        }
-
-        for (const int &block_val : file_blocks) {
-            if (block_val != 0x00000000 || block_val != 0x00000001) {
-                char *file_data = (char*)(uint8_t*) &address[block_val * (sb->block_size)];
-                fwrite(file_data, sb->block_size, sizeof(file_data), file_linux_open);
-            }
-        }
-        
         fclose(file_linux_open);
         break;
     }
