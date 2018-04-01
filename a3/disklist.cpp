@@ -5,7 +5,10 @@
  * Author: AJ Po-Deziel
  * Created on: 2018-03-16
  * 
- * Something goes here
+ * List files for a given directory from a disk image's file system.
+ * 
+ * Code stylized using Google's C++ Style Guide.
+ * Available @ https://google.github.io/styleguide/cppguide.html
  */
 
 #include <stdio.h>

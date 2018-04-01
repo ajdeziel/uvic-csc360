@@ -6,6 +6,9 @@
  * Created on: 2018-03-16
  * 
  * Retrieve file system information from a disk image file.
+ * 
+ * Code stylized using Google's C++ Style Guide.
+ * Available @ https://google.github.io/styleguide/cppguide.html
  */
 
 #include <stdio.h>
